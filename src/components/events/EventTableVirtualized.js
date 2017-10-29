@@ -8,19 +8,53 @@ import {
   eventListSelector,
   loadedSelector,
   loadingSelector,
+  fetchEventsTotal,
+  totalSelector,
+  lastUidSelector,
 } from '../../ducks/events';
 import Loader from '../common/Loader';
 import 'react-virtualized/styles.css';
 
+let firstRun = true
+let _startIndex
+let _stopIndex
+
 class EventTableVirtualized extends Component {
   static propTypes = {};
   componentDidMount() {
-    debugger
-    this.props.fetchAllEvents();
+    this.props.fetchEventsTotal();
     console.log('---', 'load events');
   }
 
-  loadMoreRows() {}
+  componentWillReceiveProps(nextProps) {
+    if (!this.props.lastUid && nextProps.lastUid) {
+      this.props.fetchAllEvents()
+    }
+  }
+
+  isRowLoaded = ({index}) => {
+    return !!this.props.events[index]
+  }
+
+  loadMoreRows = ({startIndex, stopIndex}) => {
+    if (firstRun) {
+      firstRun = false
+      return Promise.resolve()
+    }
+    if (startIndex === _startIndex && _stopIndex === stopIndex) {
+      return Promise.resolve()
+    }
+    _startIndex = startIndex
+    _stopIndex = stopIndex
+
+    return new Promise((resolve, reject) => {
+      this.props.fetchAllEvents({
+        resolve,
+        startIndex,
+        stopIndex,
+      });
+    })
+  }
 
   render() {
     if (this.props.loading) return <Loader />;
@@ -29,9 +63,9 @@ class EventTableVirtualized extends Component {
     }
     return (
       <InfiniteLoader
-        isRowLoaded={() => {}}
-        loadMoreRows={this.props.fetchAllEvents}
-        rowCount={50} // TODO: is fake
+        isRowLoaded={this.isRowLoaded}
+        loadMoreRows={this.loadMoreRows}
+        rowCount={this.props.total}
       >
         {({ onRowsRendered, registerChild }) => (<Table
           height={500}
@@ -41,7 +75,7 @@ class EventTableVirtualized extends Component {
           rowGetter={this.rowGetter}
           onRowsRendered={onRowsRendered}
           ref={registerChild}
-          rowCount={50} // TODO: is fake
+          rowCount={this.props.total}
           overscanRowCount={0}
           onRowClick={({ rowData }) => this.props.selectEvent(rowData.uid)}
         >
@@ -62,6 +96,8 @@ export default connect(
     loading: loadingSelector(state),
     loaded: loadedSelector(state),
     selected: selectedEventsSelector(state),
+    total: totalSelector(state),
+    lastUid: lastUidSelector(state),
   }),
-  { fetchAllEvents, selectEvent }
+  { fetchAllEvents, selectEvent, fetchEventsTotal }
 )(EventTableVirtualized);
