@@ -17,6 +17,10 @@ export const FETCH_ALL_SUCCESS = `${prefix}/FETCH_ALL_SUCCESS`
 export const FETCH_LAZY_REQUEST = `${prefix}/FETCH_LAZY_REQUEST`
 export const FETCH_LAZY_START = `${prefix}/FETCH_LAZY_START`
 export const FETCH_LAZY_SUCCESS = `${prefix}/FETCH_LAZY_SUCCESS`
+export const REMOVE_EVENT_REQUEST = `${prefix}/REMOVE_EVENT_REQUEST`
+export const REMOVE_EVENT_START = `${prefix}/REMOVE_EVENT_START`
+export const REMOVE_EVENT_SUCCESS = `${prefix}/REMOVE_EVENT_SUCCESS`
+export const REMOVE_EVENT_ERROR = `${prefix}/REMOVE_EVENT_ERROR`
 
 export const SELECT_EVENT = `${prefix}/SELECT_EVENT`
 
@@ -47,6 +51,7 @@ export default function reducer(state = new ReducerRecord(), action) {
     switch (type) {
         case FETCH_ALL_START:
         case FETCH_LAZY_START:
+        case REMOVE_EVENT_START:
             return state.set('loading', true)
 
         case FETCH_ALL_SUCCESS:
@@ -63,6 +68,10 @@ export default function reducer(state = new ReducerRecord(), action) {
 
         case SELECT_EVENT:
             return state.update('selected', selected => selected.add(payload.uid))
+        case REMOVE_EVENT_SUCCESS:
+            return state
+                .set('loading', false)
+                .removeIn(['entities', payload.eventId])
 
         default:
             return state
@@ -82,6 +91,8 @@ export const eventListSelector = createSelector(entitiesSelector, entities => en
 export const selectedEventsSelector = createSelector(entitiesSelector, selectionSelector, (entities, selection) =>
     selection.map(uid => entities.get(uid))
 )
+export const idSelector = (state, props) => props.id
+export const eventSelector = createSelector(entitiesSelector, idSelector, (entities, id) => entities.get(id))
 
 /**
  * Action Creators
@@ -103,6 +114,13 @@ export function selectEvent(uid) {
 export function fetchLazy() {
     return {
         type: FETCH_LAZY_REQUEST
+    }
+}
+
+export function removeEvent(eventId) {
+    return {
+        type: REMOVE_EVENT_REQUEST,
+        payload: {eventId}
     }
 }
 
@@ -154,6 +172,28 @@ export const fetchLazySaga = function * () {
     }
 }
 
+export const removeEventSaga = function * (action) {
+    yield put({
+        type: REMOVE_EVENT_START
+    })
+
+    const {payload} = action
+    const child = firebase.database().ref('events').child(payload.eventId)
+
+    try {
+        yield call([child, child.remove]);
+        yield put({
+            type: REMOVE_EVENT_SUCCESS,
+            payload: {eventId: payload.eventId}
+        })
+    } catch (error) {
+        yield put({
+            type: REMOVE_EVENT_ERROR,
+            payload: {error}
+        })
+    }
+}
+
 //lazy fetch FB
 /*
 firebase.database().ref('events')
@@ -165,6 +205,7 @@ firebase.database().ref('events')
 export function* saga() {
     yield all([
         takeEvery(FETCH_ALL_REQUEST, fetchAllSaga),
+        takeEvery(REMOVE_EVENT_REQUEST, removeEventSaga),
         fetchLazySaga()
     ])
 }

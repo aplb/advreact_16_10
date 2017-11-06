@@ -3,6 +3,7 @@ import {connect} from 'react-redux'
 import {moduleName, fetchLazy, selectEvent, eventListSelector} from '../../ducks/events'
 import {Table, Column, InfiniteLoader} from 'react-virtualized'
 import 'react-virtualized/styles.css'
+import EventRow from './EventRow'
 
 export class EventList extends Component {
     static propTypes = {
@@ -33,6 +34,7 @@ export class EventList extends Component {
                         height={300}
                         onRowClick={this.handleRowClick}
                         onRowsRendered={onRowsRendered}
+                        rowRenderer={props => <EventRow {...props} />}
                     >
                         <Column
                             label="title"
