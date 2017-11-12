@@ -1,6 +1,6 @@
 import React, { Component } from 'react'
 import {connect} from 'react-redux'
-import {addPerson} from '../../ducks/people'
+import {addPerson, cancelPeopleSync} from '../../ducks/people'
 import NewPersonForm from '../people/NewPersonForm'
 import PeopleList from '../people/PeopleList'
 
@@ -8,6 +8,10 @@ class PersonPage extends Component {
     static propTypes = {
 
     };
+
+    componentWillUnmount() {
+      this.props.cancelPeopleSync();
+    }
 
     render() {
         return (
@@ -20,4 +24,4 @@ class PersonPage extends Component {
     }
 }
 
-export default connect(null, {addPerson})(PersonPage)
+export default connect(null, {addPerson, cancelPeopleSync})(PersonPage)

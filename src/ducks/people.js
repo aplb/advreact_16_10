@@ -21,6 +21,7 @@ export const FETCH_ALL_SUCCESS = `${prefix}/FETCH_ALL_SUCCESS`
 
 export const ADD_EVENT_REQUEST = `${prefix}/ADD_EVENT_REQUEST`
 export const ADD_EVENT_SUCCESS = `${prefix}/ADD_EVENT_SUCCESS`
+export const CANCEL_PEOPLE_SYNC = `${prefix}/CANCEL_PEOPLE_SYNC`
 
 /**
  * Reducer
@@ -89,6 +90,12 @@ export function addEventToPerson(eventId, personId) {
     return {
         type: ADD_EVENT_REQUEST,
         payload: { eventId, personId }
+    }
+}
+
+export function cancelPeopleSync() {
+    return {
+        type: CANCEL_PEOPLE_SYNC,
     }
 }
 
@@ -183,18 +190,32 @@ const createPeopleSocket = () => eventChannel(emit => {
 export const realtimePeopleSyncSaga = function * () {
     const chan = yield call(createPeopleSocket)
 
-    while (true) {
-        const { data } = yield take(chan)
+    try {
+        while (true) {
+            const { data } = yield take(chan)
 
-        yield put({
-            type: FETCH_ALL_SUCCESS,
-            payload: data.val()
-        })
+            yield put({
+                type: FETCH_ALL_SUCCESS,
+                payload: data.val()
+            })
+        }
+    } finally {
+        if (yield cancelled()) {
+            chan.close()
+        }
+    }
+}
+
+export function * cancelPeopleSyncSaga(peopleSyncTask) {
+    while (true) {
+        yield take(CANCEL_PEOPLE_SYNC)
+        yield cancel(peopleSyncTask)
     }
 }
 
 export function * saga() {
-    yield spawn(realtimePeopleSyncSaga)
+    const realtimeTask = yield spawn(realtimePeopleSyncSaga)
+    yield spawn(cancelPeopleSyncSaga, realtimeTask)
 
     yield all([
         takeEvery(ADD_PERSON_REQUEST, addPersonSaga),
